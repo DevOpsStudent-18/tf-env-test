@@ -12,7 +12,7 @@ terraform {
     organization = "testtfproj"
 
     workspaces {
-      tags = ["tf-env-test"]
+      name = "testcliworkspace"
     }
   }
 }
