@@ -1,37 +1,60 @@
-name: terraform-dev
+name: terraform
 
 on:
-  workflow_dispatch:
+  pull_request:
+    paths:
+      - "*.tf"
+      - "environments/**"
+      - ".github/workflows/terraform.yml"
   push:
     branches: ["main"]
-
+    paths:
+      - "*.tf"
+      - "environments/**"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: "Environment to apply"
+        type: choice
+        required: true
+        options:
+          - dev
 
 permissions:
   contents: read
 
 env:
   TF_IN_AUTOMATION: "true"
-  TF_API_TOKEN: "${{ secrets.TF_API_TOKEN }}"
 
 jobs:
   plan:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev]
+    environment: ${{ matrix.env }}
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
       - name: Terraform Init
-        run: terraform init -input=false
+        run: terraform init -input=false -backend-config="environments/${{ matrix.env }}/terraform.tfbackend"
       - name: Terraform Plan (Remote)
-        run: terraform plan -input=false
+        run: terraform plan -input=false -var-file="environments/${{ matrix.env }}/terraform.tfvars"
 
   apply:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev]
+    environment: ${{ matrix.env }}
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
       - name: Terraform Init
-        run: terraform init -input=false
+        run: terraform init -input=false -backend-config="environments/${{ matrix.env }}/terraform.tfbackend"
       - name: Terraform Apply (Remote)
-        run: terraform apply -auto-approve -input=false
+        if: github.event_name == 'push' || inputs.target_env == matrix.env
+        run: terraform apply -auto-approve -input=false -var-file="environments/${{ matrix.env }}/terraform.tfvars"

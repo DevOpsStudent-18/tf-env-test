@@ -1,0 +1,5 @@
+organization = "testtfproj"
+
+workspaces {
+  name = "testcliworkspace-test"
+}
