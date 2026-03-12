@@ -24,23 +24,24 @@ on:
 permissions:
   contents: read
 
-env:
-  TF_IN_AUTOMATION: "true"
 
 jobs:
   plan:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     strategy:
       matrix:
         env: [dev]
     environment: ${{ matrix.env }}
+    env:
+      TF_WORKSPACE: ${{ matrix.env }}
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
       - name: Terraform Init
-        run: terraform init -input=false -backend-config="environments/${{ matrix.env }}/terraform.tfbackend"
+        run: terraform init -input=false
       - name: Terraform Plan (Remote)
+        if: github.event_name == 'pull_request' || inputs.target_env == matrix.env
         run: terraform plan -input=false -var-file="environments/${{ matrix.env }}/terraform.tfvars"
 
   apply:
@@ -50,11 +51,13 @@ jobs:
       matrix:
         env: [dev]
     environment: ${{ matrix.env }}
+    env:
+      TF_WORKSPACE: ${{ matrix.env }}
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
       - name: Terraform Init
-        run: terraform init -input=false -backend-config="environments/${{ matrix.env }}/terraform.tfbackend"
+        run: terraform init -input=false
       - name: Terraform Apply (Remote)
         if: github.event_name == 'push' || inputs.target_env == matrix.env
         run: terraform apply -auto-approve -input=false -var-file="environments/${{ matrix.env }}/terraform.tfvars"
